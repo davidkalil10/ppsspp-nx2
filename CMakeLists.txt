@@ -1789,8 +1789,9 @@ if(USE_LIBNX)
 			message(FATAL_ERROR "Missing kaihen-jit.o at ${KAIHEN_JIT_OBJ}")
 		endif()
 		target_link_options(${TargetBin} PRIVATE
-			"-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/PPSSPP-switch2.map")
-		target_link_libraries(${TargetBin} "${KAIHEN_JIT_OBJ}" kaihen nx)
+			"-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/PPSSPP-switch2.map"
+			"${KAIHEN_JIT_OBJ}")
+		target_link_libraries(${TargetBin} kaihen nx)
 		nx_generate_nacp(
 			OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/PPSSPP-switch2.nacp"
 			NAME "PPSSPP"

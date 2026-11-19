@@ -107,10 +107,11 @@ u32 __nx_applet_type = AppletType_Application;
 size_t __nx_heap_size = 0;
 }
 
+static AppletOperationMode g_switchOperationMode;
+#ifndef __SWITCH2__
 static ViDisplay g_switchDisplay;
 static ViLayer g_switchLayer;
 static NWindow g_switchWindow;
-static AppletOperationMode g_switchOperationMode;
 
 static void SwitchOutputSize(AppletOperationMode operationMode, u32 *width, u32 *height) {
 	if (operationMode == AppletOperationMode_Handheld) {
@@ -171,6 +172,7 @@ extern "C" void __nx_win_exit() {
 	viCloseDisplay(&g_switchDisplay);
 	viExit();
 }
+#endif // !__SWITCH2__
 #endif
 
 GlobalUIState lastUIState = UISTATE_MENU;
@@ -236,6 +238,14 @@ static std::string SwitchNormalizeNroPath(std::string path) {
 
 static void CheckSwitchOperationMode() {
 	AppletOperationMode operationMode = appletGetOperationMode();
+#ifdef __SWITCH2__
+	static bool initialized = false;
+	if (!initialized) {
+		g_switchOperationMode = operationMode;
+		initialized = true;
+		return;
+	}
+#endif
 	if (operationMode != g_switchOperationMode) {
 		g_switchOperationMode = operationMode;
 		g_restartParams.clear();
