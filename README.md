@@ -1,3 +1,24 @@
+# PPSSPP-nx2 (Nintendo Switch 2 Port)
+
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-Support%20this%20project-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/davidkalil10)
+
+> **Nintendo Switch 2 Port (`ounce-devkit` / `libounce` + `OunceVK` + `kaiHEN` JIT):** Adapted and maintained by **David Kalil Braga** ([@davidkalil10](https://github.com/davidkalil10)).  
+> Special thanks to **[@NaGaa95](https://github.com/NaGaa95)** (creator of **[ppsspp-nx](https://github.com/NaGaa95/ppsspp-nx)**) and **Henrik Rydgård & the [PPSSPP team](https://github.com/hrydgard/ppsspp)**.
+
+## Nintendo Switch 2 Highlights
+- **Native Vulkan 1.4 via `OunceVK`** (Mesa NVK + Zink/EGL in `ounce-devkit`) with **LSFG 2x Vulkan Frame Generation** support (user-supplied `Lossless.dll` in `/switch/ppsspp-nx/lsfg/Lossless.dll`).
+- **ARM64 JIT via `kaiHEN` (`-lkaihen`):** Publishes compiled ARM64 code ranges via `kaihenJitPublishRanges` in `ARM64XEmitter::FlushIcacheSections`.
+- **Clean Switch 2 Dependencies:** SDL3, FFmpeg, and SMB (`libsmb2`) built cleanly against `libounce` and `portlibs/switch2` (`-mcpu=cortex-a78c+crypto`).
+
+## Support
+If you find **ppsspp-nx2** and our Nintendo Switch 2 homebrew ports useful, consider buying me a coffee to support continued development:
+
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/davidkalil10)
+
+👉 **[https://ko-fi.com/davidkalil10](https://ko-fi.com/davidkalil10)**
+
+---
+
 PPSSPP - a fast and portable PSP emulator
 =========================================
 

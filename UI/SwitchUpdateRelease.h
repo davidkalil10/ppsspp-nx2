@@ -53,10 +53,17 @@ inline bool SwitchUpdate_ParseRelease(std::string_view data, SwitchReleaseInfo *
 			}
 			std::string lowerName = name;
 			std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), [](unsigned char c) { return (char)std::tolower(c); });
+#ifdef __SWITCH2__
+			constexpr std::string_view prefix = "https://github.com/davidkalil10/ppsspp-nx2/releases/download/";
+			if (lowerName != "ppsspp-switch2.nro" || url.compare(0, prefix.size(), prefix) != 0) {
+				continue;
+			}
+#else
 			constexpr std::string_view prefix = "https://github.com/NaGaa95/ppsspp-nx/releases/download/";
 			if (lowerName != "ppsspp.nro" || url.compare(0, prefix.size(), prefix) != 0) {
 				continue;
 			}
+#endif
 			found.assetName = std::move(name);
 			found.assetUrl = std::move(url);
 			found.assetSize = (uint64_t)size;

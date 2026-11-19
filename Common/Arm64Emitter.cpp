@@ -25,6 +25,9 @@
 
 #if PPSSPP_PLATFORM(SWITCH)
 #include <switch.h>
+#ifdef __SWITCH2__
+#include <kaihen.h>
+#endif
 #endif
 
 namespace Arm64Gen
@@ -343,6 +346,38 @@ void ARM64XEmitter::FlushIcacheSections(const u8 *const *starts, const u8 *const
 	for (int i = 0; i < count; i++)
 		FlushInstructionCache(GetCurrentProcess(), starts[i], ends[i] - starts[i]);
 #elif PPSSPP_PLATFORM(SWITCH)
+#ifdef __SWITCH2__
+	Jit *jit = static_cast<Jit *>(m_switch2Jit);
+	if (jit && jit->type == JitType_SetProcessMemoryPermission && jit->rw_addr != jit->src_addr) {
+		const uintptr_t rxBase = reinterpret_cast<uintptr_t>(jit->rx_addr);
+		std::vector<KaihenJitRange> ranges;
+		ranges.reserve(count > 0 ? (size_t)count : 1);
+		for (int i = 0; i < count; i++) {
+			if (!starts[i] || !ends[i] || ends[i] <= starts[i])
+				continue;
+			const uintptr_t startAddr = reinterpret_cast<uintptr_t>(starts[i]);
+			const size_t size = static_cast<size_t>(ends[i] - starts[i]);
+			if (startAddr < rxBase)
+				continue;
+			const size_t off = startAddr - rxBase;
+			if (off >= jit->size)
+				continue;
+			const size_t clampedSize = (off + size > jit->size) ? (jit->size - off) : size;
+			ranges.push_back(KaihenJitRange{ static_cast<u64>(off), static_cast<u64>(clampedSize) });
+		}
+		if (!ranges.empty()) {
+			(void)kaihenJitPublishRanges(jit, ranges.data(), ranges.size());
+		}
+	} else {
+		intptr_t aliasOffset = (intptr_t)m_writable - (intptr_t)m_code;
+		for (int i = 0; i < count; i++) {
+			size_t size = ends[i] - starts[i];
+			void *writableStart = (void *)((intptr_t)starts[i] + aliasOffset);
+			armDCacheFlush(writableStart, size);
+			armICacheInvalidate((void *)starts[i], size);
+		}
+	}
+#else
 	intptr_t aliasOffset = (intptr_t)m_writable - (intptr_t)m_code;
 	for (int i = 0; i < count; i++) {
 		size_t size = ends[i] - starts[i];
@@ -350,6 +385,7 @@ void ARM64XEmitter::FlushIcacheSections(const u8 *const *starts, const u8 *const
 		armDCacheFlush(writableStart, size);
 		armICacheInvalidate((void *)starts[i], size);
 	}
+#endif
 #elif PPSSPP_ARCH(ARM64)
 	// Code from Dolphin, contributed by the Mono project.
 

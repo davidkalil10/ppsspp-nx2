@@ -93,7 +93,9 @@ SDLJoystick *joystick = NULL;
 #if PPSSPP_PLATFORM(SWITCH)
 #include <switch.h>
 #include "Common/GPU/Vulkan/SwitchLSFG.h"
+#ifndef __SWITCH2__
 #include "Common/GPU/Deko3D/DekoContext.h"
+#endif
 #include "UI/SwitchForwarderInstaller.h"
 #include "UI/SwitchLibrary.h"
 #include "UI/SwitchUpdate.h"
@@ -2598,7 +2600,11 @@ int main(int argc, char *argv[]) {
 #endif
 		if (backend == GPUBackend::OPENGL || backend == GPUBackend::ZINK) {
 #if PPSSPP_PLATFORM(SWITCH)
+#ifdef __SWITCH2__
+			setenv("GALLIUM_DRIVER", "zink", 1);
+#else
 			setenv("GALLIUM_DRIVER", backend == GPUBackend::ZINK ? "zink" : "nouveau", 1);
+#endif
 #endif
 			SDL_GLContext glContext = nullptr;
 			window = CreateSDLGLWindowAndContext(x, y, w, h, mode, cmdLineOptions.force_gl_version, &glContext, errorMessage);
@@ -2608,7 +2614,7 @@ int main(int argc, char *argv[]) {
 			windowDesc.data2 = (void *)glContext;
 
 			ctx = new SDLGLGraphicsContext();
-#if PPSSPP_PLATFORM(SWITCH)
+#if PPSSPP_PLATFORM(SWITCH) && !defined(__SWITCH2__)
 		} else if (backend == GPUBackend::DEKO3D) {
 			SDL_PropertiesID properties = SDL_CreateProperties();
 			SDL_SetStringProperty(properties, SDL_PROP_WINDOW_CREATE_TITLE_STRING, "Initializing deko3d...");

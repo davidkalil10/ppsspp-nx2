@@ -3,6 +3,18 @@
 #if PPSSPP_PLATFORM(SWITCH)
 
 #include "UI/SwitchForwarderInstaller.h"
+
+#ifdef __SWITCH2__
+void SwitchForwarder_SetExecutablePath(std::string) {}
+bool SwitchForwarder_Create(const std::string &, const std::string &, const std::string &,
+							const std::vector<uint8_t> &, std::string *error) {
+	if (error) {
+		*error = "HOME Menu forwarders are not supported on Nintendo Switch 2 yet.";
+	}
+	return false;
+}
+#else
+
 #include "UI/SwitchForwarderStructs.h"
 #include "UI/SwitchLibrary.h"
 
@@ -1334,4 +1346,5 @@ bool SwitchForwarder_Create(const std::string &gamePath, const std::string &name
 	return false;
 }
 
+#endif // !__SWITCH2__
 #endif

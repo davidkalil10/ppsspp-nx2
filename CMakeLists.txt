@@ -230,6 +230,16 @@ if(USE_LIBNX)
 	set(USING_GLES2 OFF CACHE BOOL "Set to ON if target device uses OpenGL ES 2.0" FORCE)
 	set(USING_X11_VULKAN OFF)
 	add_compile_definitions(GLEW_EGL GLEW_NO_GLU GLEW_STATIC HAVE_LIBNX IMGUI_DISABLE_DEFAULT_SHELL_FUNCTIONS)
+	if(NINTENDO_SWITCH2)
+		set(SWITCH2_DEVKITPRO "$ENV{DEVKITPRO}")
+		if(NOT SWITCH2_DEVKITPRO)
+			set(SWITCH2_DEVKITPRO "/opt/devkitpro")
+		endif()
+		include_directories(BEFORE SYSTEM "${SWITCH2_DEVKITPRO}/portlibs/switch2/include" "${SWITCH2_DEVKITPRO}/libounce/include")
+		link_directories(BEFORE "${SWITCH2_DEVKITPRO}/portlibs/switch2/lib" "${SWITCH2_DEVKITPRO}/libounce/lib")
+		add_compile_definitions(__SWITCH__ __SWITCH2__)
+		add_compile_options(-mcpu=cortex-a78c+crypto -mtp=soft -ftls-model=local-exec)
+	endif()
 	add_compile_options(
 		"$<$<CONFIG:Release>:-O3>"
 		"$<$<CONFIG:Release>:-g0>"
@@ -264,6 +274,7 @@ if(USE_LIBNX)
 	target_compile_definitions(smb2 PRIVATE AES128_ECB_encrypt=smb2_AES128_ECB_encrypt)
 	target_compile_options(smb2 PRIVATE -UNEED_WRITEV)
 
+	if(NOT NINTENDO_SWITCH2)
 	set(USBHSFS_GPL OFF CACHE BOOL "" FORCE)
 	set(USBHSFS_NTFS ON CACHE BOOL "" FORCE)
 	set(USBHSFS_EXT4 OFF CACHE BOOL "" FORCE)
@@ -315,6 +326,7 @@ if(USE_LIBNX)
 		"${PPSSPP_LIBUSBHSFS_PATCH_DIR}"
 		"${libusbhsfs_SOURCE_DIR}/source")
 	target_compile_definitions(libusbhsfs PRIVATE get_fattime=usbhsfs_get_fattime)
+	endif()
 endif()
 
 if(USE_CCACHE)
@@ -1176,7 +1188,11 @@ else()
 		find_package(PkgConfig REQUIRED)
 		pkg_check_modules(SWITCH_TEXT REQUIRED IMPORTED_TARGET freetype2 harfbuzz fribidi)
 		list(APPEND targetExtraLibs PkgConfig::SWITCH_TEXT)
-		list(APPEND targetExtraLibs SwitchLsfgBackend SwitchCurl smb2 libusbhsfs)
+		if(NINTENDO_SWITCH2)
+			list(APPEND targetExtraLibs SwitchLsfgBackend SwitchCurl smb2)
+		else()
+			list(APPEND targetExtraLibs SwitchLsfgBackend SwitchCurl smb2 libusbhsfs)
+		endif()
 	endif()
 	if(SDL_TTF_LIB_TARGET)
 		list(APPEND targetExtraLibs ${SDL_TTF_LIB_TARGET})
@@ -1753,19 +1769,42 @@ if(USE_LIBNX)
 	dkp_add_asset_target(PPSSPP_romfs "${SWITCH_ROMFS_DIR}")
 	dkp_track_assets(PPSSPP_romfs FILES ${SWITCH_ROMFS_FILES})
 
-	nx_generate_nacp(
-		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/PPSSPP.nacp"
-		NAME "PPSSPP"
-		AUTHOR "naga"
-		VERSION "${PPSSPP_SWITCH_RELEASE_VERSION}"
-	)
-	nx_create_nro(PPSSPP_NRO
-		TARGET ${TargetBin}
-		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/PPSSPP.nro"
-		ICON "${CMAKE_CURRENT_SOURCE_DIR}/icons/PPSSPP-icon.jpg"
-		NACP "${CMAKE_CURRENT_BINARY_DIR}/PPSSPP.nacp"
-		ROMFS PPSSPP_romfs
-	)
+	if(NINTENDO_SWITCH2)
+		set(KAIHEN_JIT_OBJ "${SWITCH2_DEVKITPRO}/portlibs/switch2/lib/kaihen-jit.o")
+		if(NOT EXISTS "${KAIHEN_JIT_OBJ}")
+			message(FATAL_ERROR "Missing kaihen-jit.o at ${KAIHEN_JIT_OBJ}")
+		endif()
+		target_link_options(${TargetBin} PRIVATE
+			"-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/PPSSPP-switch2.map")
+		target_link_libraries(${TargetBin} "${KAIHEN_JIT_OBJ}" kaihen nx)
+		nx_generate_nacp(
+			OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/PPSSPP-switch2.nacp"
+			NAME "PPSSPP"
+			AUTHOR "PPSSPP / NaGaa95 / David Kalil Braga"
+			VERSION "${PPSSPP_SWITCH_RELEASE_VERSION}"
+		)
+		nx_create_nro(PPSSPP_NRO
+			TARGET ${TargetBin}
+			OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/PPSSPP-switch2.nro"
+			ICON "${CMAKE_CURRENT_SOURCE_DIR}/icons/PPSSPP-icon.jpg"
+			NACP "${CMAKE_CURRENT_BINARY_DIR}/PPSSPP-switch2.nacp"
+			ROMFS PPSSPP_romfs
+		)
+	else()
+		nx_generate_nacp(
+			OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/PPSSPP.nacp"
+			NAME "PPSSPP"
+			AUTHOR "naga"
+			VERSION "${PPSSPP_SWITCH_RELEASE_VERSION}"
+		)
+		nx_create_nro(PPSSPP_NRO
+			TARGET ${TargetBin}
+			OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/PPSSPP.nro"
+			ICON "${CMAKE_CURRENT_SOURCE_DIR}/icons/PPSSPP-icon.jpg"
+			NACP "${CMAKE_CURRENT_BINARY_DIR}/PPSSPP.nacp"
+			ROMFS PPSSPP_romfs
+		)
+	endif()
 endif()
 # packaging and code signing
 if(IOS AND NOT LIBRETRO)

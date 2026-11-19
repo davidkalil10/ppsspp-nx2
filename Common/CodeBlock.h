@@ -13,6 +13,9 @@
 #if PPSSPP_PLATFORM(SWITCH)
 #include <cstdio>
 #include <switch.h>
+#ifdef __SWITCH2__
+#include <kaihen.h>
+#endif
 #endif // PPSSPP_PLATFORM(SWITCH)
 
 // Everything that needs to generate code should inherit from this.
@@ -87,6 +90,9 @@ public:
 
 		region = (u8 *)jitController.rx_addr;
 		writableRegion = (u8 *)jitController.rw_addr;
+#ifdef __SWITCH2__
+		T::SetSwitch2Jit(&jitController);
+#endif
 #else // PPSSPP_PLATFORM(SWITCH)
 		// The protection will be set to RW if PlatformIsWXExclusive.
 		region = (u8 *)AllocateExecutableMemory(region_size);
@@ -163,6 +169,9 @@ public:
 		ProtectMemoryPages(region, region_size, MEM_PROT_READ | MEM_PROT_WRITE);
 		FreeExecutableMemory(region, region_size);
 #else // !PPSSPP_PLATFORM(SWITCH)
+#ifdef __SWITCH2__
+		T::SetSwitch2Jit(nullptr);
+#endif
 		jitClose(&jitController);
 		printf("[NXJIT]: Jit closed\n");
 #endif // PPSSPP_PLATFORM(SWITCH)

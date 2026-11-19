@@ -1,7 +1,9 @@
 #include "SwitchStorage.h"
 
 #include <switch.h>
+#ifndef __SWITCH2__
 #include <usbhsfs.h>
+#endif
 #include <smb2/smb2.h>
 #include <smb2/libsmb2.h>
 
@@ -149,11 +151,14 @@ std::atomic_bool s_usbInitialized{false};
 std::mutex s_usbInitMutex;
 std::atomic<uint64_t> s_usbGeneration{0};
 std::mutex s_usbMutex;
+#ifndef __SWITCH2__
 std::vector<UsbHsFsDevice> s_usbDevices;
+#endif
 std::mutex s_usbCallbackMutex;
 UsbStatusCallback s_usbCallback = nullptr;
 void* s_usbCallbackData = nullptr;
 
+#ifndef __SWITCH2__
 void usbStatusChanged(const UsbHsFsDevice* devices, u32 count, void*)
 {
 	{
@@ -207,6 +212,7 @@ Location makeUsbLocation(const UsbHsFsDevice& device)
 	std::snprintf(label,sizeof(label),"%s - %s%s%s (%llu GiB)",device.name,LIBUSBHSFS_FS_TYPE_STR(device.fs_type),device.product_name[0]?" - ":"",device.product_name,static_cast<unsigned long long>(gib));
 	location.label=label; return location;
 }
+#endif // !__SWITCH2__
 
 int fail(_reent* reent, int error)
 {
@@ -890,6 +896,10 @@ std::string SmbBrowsePath(const SmbShare& share)
 
 bool InitializeUsb(std::string* error)
 {
+#ifdef __SWITCH2__
+	(void)error;
+	return false;
+#else
 	std::lock_guard<std::mutex> initLock(s_usbInitMutex);
 	if (s_usbInitialized.load(std::memory_order_acquire)) return true;
 
@@ -906,6 +916,7 @@ bool InitializeUsb(std::string* error)
 
 	s_usbInitialized.store(true,std::memory_order_release);
 	return true;
+#endif
 }
 
 uint64_t UsbStatusGeneration()
@@ -923,6 +934,7 @@ void SetUsbStatusCallback(UsbStatusCallback callback, void* userData)
 UsbSnapshot GetUsbSnapshot()
 {
 	UsbSnapshot snapshot;
+#ifndef __SWITCH2__
 	{
 		std::lock_guard<std::mutex> lock(s_mountMutex);
 		if(!s_usbInitialized) return snapshot;
@@ -931,6 +943,7 @@ UsbSnapshot GetUsbSnapshot()
 	snapshot.generation=s_usbGeneration.load(std::memory_order_acquire);
 	for(const auto& device:s_usbDevices)
 		if(device.name[0]) snapshot.locations.emplace_back(makeUsbLocation(device));
+#endif
 	return snapshot;
 }
 
@@ -943,10 +956,16 @@ std::string ResolveUsbPath(const std::string& id)
 
 bool SafelyEjectUsb(const std::string& id, std::string* error)
 {
+#ifdef __SWITCH2__
+	(void)id;
+	if (error) *error = "USB mass storage is not supported on Nintendo Switch 2";
+	return false;
+#else
 	UsbHsFsDevice target{}; bool found=false; { std::lock_guard<std::mutex> lock(s_usbMutex); for(const auto& device:s_usbDevices) if(usbVolumeId(device)==id||usbPhysicalId(device)==id){ target=device; found=true; break; } }
 	if(!found){ if(error)*error="The USB drive is no longer connected"; return false; }
 	if(!usbHsFsUnmountDevice(&target,true)){ if(error)*error="Could not safely eject the USB drive; close files using it and try again"; return false; }
 	return true;
+#endif
 }
 
 bool GetCachedSmbStat(const std::string& path, struct stat* output)
@@ -1097,11 +1116,13 @@ void Shutdown()
 		std::lock_guard<std::mutex> ioLock(mount->ioMutex);
 		if(mount->context){if(mount->connected)smb2_disconnect_share(mount->context);smb2_destroy_context(mount->context);mount->context=nullptr;mount->connected=false;}
 	}
+#ifndef __SWITCH2__
 	if (s_usbInitialized)
 	{
 		usbHsFsSetPopulateCallback(nullptr, nullptr);
 		usbHsFsExit();
 		s_usbInitialized = false;
 	}
+#endif
 }
 } // namespace SwitchStorage

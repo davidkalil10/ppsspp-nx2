@@ -31,7 +31,7 @@
 #endif
 #include "GPU/Vulkan/GPU_Vulkan.h"
 #include "GPU/Software/SoftGpu.h"
-#if PPSSPP_PLATFORM(SWITCH)
+#if PPSSPP_PLATFORM(SWITCH) && !defined(__SWITCH2__)
 #include "GPU/Deko3D/GPU_Deko3D.h"
 #endif
 #include "GPU/Null/GPU_Null.h"
@@ -84,7 +84,7 @@ static GPUCommon *CreateGPUCore(GPUCore gpuCore, GraphicsContext *ctx, Draw::Dra
 		return nullptr;
 #endif
 	case GPUCORE_DEKO3D:
-#if PPSSPP_PLATFORM(SWITCH)
+#if PPSSPP_PLATFORM(SWITCH) && !defined(__SWITCH2__)
 		return new GPU_Deko3D(ctx, draw);
 #else
 		return nullptr;

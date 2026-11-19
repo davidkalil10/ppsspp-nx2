@@ -1,0 +1,63 @@
+name: Build PPSSPP (Nintendo Switch 2)
+
+on:
+  push:
+    branches: [ master, main ]
+    tags: [ "v*" ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-switch2:
+    name: Switch 2 (libounce + OunceVK + kaiHEN JIT)
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkita64:20260219
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Configure git safe.directory
+        run: git config --global --add safe.directory '*'
+
+      - name: Install host build tools and Switch portlibs + ounce-devkit (20261115b)
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends \
+            ninja-build perl python3 pkg-config curl ca-certificates xz-utils bzip2 patch bison flex
+          for attempt in 1 2 3 4 5; do
+            if dkp-pacman -Sy --noconfirm --needed switch-dev switch-portlibs switch-zlib switch-libzstd switch-libexpat switch-libelf switch-curl switch-mbedtls switch-libpng switch-libjpeg-turbo switch-freetype switch-harfbuzz switch-fribidi switch-bzip2; then
+              break
+            fi
+            echo "dkp-pacman attempt $attempt failed; retrying in $((attempt * 10))s..."
+            sleep $((attempt * 10))
+          done
+          sdk="$(mktemp -d)"
+          git clone https://github.com/ouncebrew/ounce-devkit.git "$sdk"
+          git -C "$sdk" checkout 0f38ba80d7ee768c5749278f127749d14ece2036
+          bash "$sdk/install.sh" "20261115b"
+          rm -rf "$sdk"
+
+      - name: Cache Switch 2 SDL3 and FFmpeg
+        uses: actions/cache@v4
+        with:
+          path: |
+            build-switch2-deps/sdl-prefix
+            build-switch2-deps/ffmpeg-prefix
+          key: ppsspp-switch2-deps-v1-${{ hashFiles('SDL/switch-vulkan-window.patch', 'scripts/build-switch2.sh') }}
+          restore-keys: |
+            ppsspp-switch2-deps-v1-
+
+      - name: Build and verify PPSSPP-switch2.nro
+        run: bash scripts/build-switch2.sh
+
+      - name: Upload Switch 2 NRO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PPSSPP-switch2-nro
+          path: dist/PPSSPP-switch2.nro
+          if-no-files-found: error

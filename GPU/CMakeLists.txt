@@ -221,7 +221,7 @@ set(GPU_SOURCES
 add_library(GPU OBJECT ${GPU_SOURCES})
 target_compile_features(GPU PUBLIC cxx_std_17)
 
-if(USE_LIBNX)
+if(USE_LIBNX AND NOT NINTENDO_SWITCH2)
 	target_sources(GPU PRIVATE
 		Deko3D/GPU_Deko3D.cpp Deko3D/GPU_Deko3D.h
 		Deko3D/DrawEngineDeko3D.cpp Deko3D/DrawEngineDeko3D.h

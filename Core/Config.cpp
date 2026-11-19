@@ -657,7 +657,11 @@ static int DefaultGPUBackend() {
 #if PPSSPP_PLATFORM(UWP)
 	return (int)GPUBackend::DIRECT3D11;
 #elif PPSSPP_PLATFORM(SWITCH)
+#ifdef __SWITCH2__
+	return (int)GPUBackend::VULKAN;
+#else
 	return (int)GPUBackend::DEKO3D;
+#endif
 #elif PPSSPP_PLATFORM(WINDOWS)
 	// On Win10, there's a good chance Vulkan will work by default.
 	if (IsWin10OrHigher()) {
@@ -780,8 +784,13 @@ bool Config::IsBackendEnabled(GPUBackend backend) {
 	if (backend != GPUBackend::DIRECT3D11)
 		return false;
 #elif PPSSPP_PLATFORM(SWITCH)
+#ifdef __SWITCH2__
+	if (backend != GPUBackend::OPENGL && backend != GPUBackend::VULKAN && backend != GPUBackend::ZINK)
+		return false;
+#else
 	if (backend != GPUBackend::OPENGL && backend != GPUBackend::VULKAN && backend != GPUBackend::ZINK && backend != GPUBackend::DEKO3D)
 		return false;
+#endif
 #elif PPSSPP_PLATFORM(WINDOWS)
 	if (backend == GPUBackend::DIRECT3D11 && !IsVistaOrHigher())
 		return false;
