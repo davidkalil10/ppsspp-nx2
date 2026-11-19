@@ -59,14 +59,10 @@ protected:
 };
 
 #ifdef __SWITCH2__
-namespace switch2_codeblock_detail {
-template<typename U>
-auto SetJitIfSupported(U *obj, void *jit, int) -> decltype(obj->SetSwitch2Jit(jit), void()) {
-	obj->SetSwitch2Jit(jit);
-}
-template<typename U>
-void SetJitIfSupported(U *, void *, ...) {}
-} // namespace switch2_codeblock_detail
+namespace Switch2JitPool {
+bool Alloc(size_t size, uint8_t **outRx, uint8_t **outRw);
+void Free(uint8_t *rx, size_t size);
+} // namespace Switch2JitPool
 #endif
 
 template<class T> class CodeBlock : public CodeBlockCommon, public T {
@@ -89,6 +85,16 @@ public:
 	void AllocCodeSpace(int size) {
 		region_size = size;
 #if PPSSPP_PLATFORM(SWITCH)
+#ifdef __SWITCH2__
+		if (!Switch2JitPool::Alloc(size, &region, &writableRegion)) {
+			printf("Failed to allocate Switch 2 JIT slice of size 0x%x\n", size);
+			region_size = 0;
+			region = nullptr;
+			writableRegion = nullptr;
+			T::SetCodePointer(nullptr, nullptr);
+			return;
+		}
+#else
 		Result rc = jitCreate(&jitController, size);
 		if (R_FAILED(rc)) {
 			printf("Failed to create Jitbuffer of size 0x%x err: 0x%x\n", size, rc);
@@ -101,8 +107,6 @@ public:
 
 		region = (u8 *)jitController.rx_addr;
 		writableRegion = (u8 *)jitController.rw_addr;
-#ifdef __SWITCH2__
-		switch2_codeblock_detail::SetJitIfSupported(static_cast<T *>(this), &jitController, 0);
 #endif
 #else // PPSSPP_PLATFORM(SWITCH)
 		// The protection will be set to RW if PlatformIsWXExclusive.
@@ -181,10 +185,11 @@ public:
 		FreeExecutableMemory(region, region_size);
 #else // !PPSSPP_PLATFORM(SWITCH)
 #ifdef __SWITCH2__
-		switch2_codeblock_detail::SetJitIfSupported(static_cast<T *>(this), nullptr, 0);
-#endif
+		Switch2JitPool::Free(region, region_size);
+#else
 		jitClose(&jitController);
 		printf("[NXJIT]: Jit closed\n");
+#endif
 #endif // PPSSPP_PLATFORM(SWITCH)
 		region = nullptr;
 		writableRegion = nullptr;

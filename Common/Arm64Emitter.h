@@ -367,9 +367,6 @@ private:
 	const u8 *m_code = nullptr;
 	u8 *m_writable = nullptr;
 	const u8 *m_lastCacheFlushEnd = nullptr;
-#if defined(__SWITCH2__)
-	void *m_switch2Jit = nullptr;
-#endif
 
 	void EncodeCompareBranchInst(u32 op, ARM64Reg Rt, const void* ptr);
 	void EncodeTestBranchInst(u32 op, ARM64Reg Rt, u8 bits, const void* ptr);
@@ -420,9 +417,6 @@ public:
 	}
 
 	void SetCodePointer(const u8 *ptr, u8 *writePtr);
-#if defined(__SWITCH2__)
-	void SetSwitch2Jit(void *jit) { m_switch2Jit = jit; }
-#endif
 	const u8* GetCodePointer() const { return m_code; }
 
 	void ReserveCodeSpace(u32 bytes);

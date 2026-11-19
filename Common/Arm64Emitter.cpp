@@ -27,7 +27,123 @@
 #include <switch.h>
 #ifdef __SWITCH2__
 #include <kaihen.h>
+#include <algorithm>
+#include <mutex>
 #endif
+#endif
+
+#if PPSSPP_PLATFORM(SWITCH) && defined(__SWITCH2__)
+namespace Switch2JitPool {
+namespace {
+constexpr size_t kPoolSize = 32u * 1024u * 1024u;
+constexpr size_t kPageSize = 0x1000u;
+
+struct Slice {
+	size_t offset;
+	size_t size;
+};
+
+struct PoolState {
+	std::mutex mutex;
+	Jit jit{};
+	bool open = false;
+	std::vector<Slice> used;
+};
+
+PoolState &State() {
+	static PoolState s;
+	return s;
+}
+
+bool EnsureOpenLocked(PoolState &s) {
+	if (s.open)
+		return true;
+	Result rc = jitCreate(&s.jit, kPoolSize);
+	if (R_FAILED(rc)) {
+		ERROR_LOG(Log::JIT, "Switch2JitPool: jitCreate(0x%zx) failed: 0x%x", kPoolSize, rc);
+		return false;
+	}
+	s.open = true;
+	INFO_LOG(Log::JIT, "Switch2JitPool: created shared %zu MiB kaiHEN JIT pool (type=%d rx=%p rw=%p)",
+		kPoolSize / (1024u * 1024u), (int)s.jit.type, s.jit.rx_addr, s.jit.rw_addr);
+	return true;
+}
+} // namespace
+
+bool Alloc(size_t size, uint8_t **outRx, uint8_t **outRw) {
+	if (!size || !outRx || !outRw)
+		return false;
+	const size_t aligned = (size + kPageSize - 1u) & ~(kPageSize - 1u);
+	PoolState &s = State();
+	std::lock_guard<std::mutex> lock(s.mutex);
+	if (!EnsureOpenLocked(s))
+		return false;
+
+	size_t candidate = 0;
+	for (const Slice &sl : s.used) {
+		if (candidate + aligned <= sl.offset)
+			break;
+		candidate = std::max(candidate, sl.offset + sl.size);
+	}
+	if (candidate + aligned > s.jit.size) {
+		ERROR_LOG(Log::JIT, "Switch2JitPool: out of space for 0x%zx bytes", aligned);
+		return false;
+	}
+
+	s.used.push_back(Slice{ candidate, aligned });
+	std::sort(s.used.begin(), s.used.end(), [](const Slice &a, const Slice &b) {
+		return a.offset < b.offset;
+	});
+
+	*outRx = static_cast<uint8_t *>(s.jit.rx_addr) + candidate;
+	*outRw = static_cast<uint8_t *>(s.jit.rw_addr) + candidate;
+	return true;
+}
+
+void Free(uint8_t *rx, size_t size) {
+	if (!rx || !size)
+		return;
+	PoolState &s = State();
+	std::lock_guard<std::mutex> lock(s.mutex);
+	if (!s.open)
+		return;
+	const uintptr_t base = reinterpret_cast<uintptr_t>(s.jit.rx_addr);
+	const uintptr_t addr = reinterpret_cast<uintptr_t>(rx);
+	if (addr < base || addr >= base + s.jit.size)
+		return;
+	const size_t off = addr - base;
+	s.used.erase(std::remove_if(s.used.begin(), s.used.end(),
+		[off](const Slice &sl) { return sl.offset == off; }),
+		s.used.end());
+}
+
+bool Publish(const u8 *const *starts, const u8 *const *ends, int count) {
+	PoolState &s = State();
+	std::lock_guard<std::mutex> lock(s.mutex);
+	if (!s.open || s.jit.type != JitType_SetProcessMemoryPermission || s.jit.rw_addr == s.jit.src_addr)
+		return false;
+	const uintptr_t rxBase = reinterpret_cast<uintptr_t>(s.jit.rx_addr);
+	std::vector<KaihenJitRange> ranges;
+	ranges.reserve(count > 0 ? (size_t)count : 1);
+	for (int i = 0; i < count; i++) {
+		if (!starts[i] || !ends[i] || ends[i] <= starts[i])
+			continue;
+		const uintptr_t startAddr = reinterpret_cast<uintptr_t>(starts[i]);
+		const size_t sz = static_cast<size_t>(ends[i] - starts[i]);
+		if (startAddr < rxBase)
+			continue;
+		const size_t off = startAddr - rxBase;
+		if (off >= s.jit.size)
+			continue;
+		const size_t clampedSize = (off + sz > s.jit.size) ? (s.jit.size - off) : sz;
+		ranges.push_back(KaihenJitRange{ static_cast<u64>(off), static_cast<u64>(clampedSize) });
+	}
+	if (!ranges.empty()) {
+		(void)kaihenJitPublishRanges(&s.jit, ranges.data(), ranges.size());
+	}
+	return true;
+}
+} // namespace Switch2JitPool
 #endif
 
 namespace Arm64Gen
@@ -347,28 +463,7 @@ void ARM64XEmitter::FlushIcacheSections(const u8 *const *starts, const u8 *const
 		FlushInstructionCache(GetCurrentProcess(), starts[i], ends[i] - starts[i]);
 #elif PPSSPP_PLATFORM(SWITCH)
 #ifdef __SWITCH2__
-	Jit *jit = static_cast<Jit *>(m_switch2Jit);
-	if (jit && jit->type == JitType_SetProcessMemoryPermission && jit->rw_addr != jit->src_addr) {
-		const uintptr_t rxBase = reinterpret_cast<uintptr_t>(jit->rx_addr);
-		std::vector<KaihenJitRange> ranges;
-		ranges.reserve(count > 0 ? (size_t)count : 1);
-		for (int i = 0; i < count; i++) {
-			if (!starts[i] || !ends[i] || ends[i] <= starts[i])
-				continue;
-			const uintptr_t startAddr = reinterpret_cast<uintptr_t>(starts[i]);
-			const size_t size = static_cast<size_t>(ends[i] - starts[i]);
-			if (startAddr < rxBase)
-				continue;
-			const size_t off = startAddr - rxBase;
-			if (off >= jit->size)
-				continue;
-			const size_t clampedSize = (off + size > jit->size) ? (jit->size - off) : size;
-			ranges.push_back(KaihenJitRange{ static_cast<u64>(off), static_cast<u64>(clampedSize) });
-		}
-		if (!ranges.empty()) {
-			(void)kaihenJitPublishRanges(jit, ranges.data(), ranges.size());
-		}
-	} else {
+	if (!Switch2JitPool::Publish(starts, ends, count)) {
 		intptr_t aliasOffset = (intptr_t)m_writable - (intptr_t)m_code;
 		for (int i = 0; i < count; i++) {
 			size_t size = ends[i] - starts[i];
