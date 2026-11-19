@@ -1784,13 +1784,8 @@ if(USE_LIBNX)
 	dkp_track_assets(PPSSPP_romfs FILES ${SWITCH_ROMFS_FILES})
 
 	if(NINTENDO_SWITCH2)
-		set(KAIHEN_JIT_OBJ "${SWITCH2_DEVKITPRO}/portlibs/switch2/lib/kaihen-jit.o")
-		if(NOT EXISTS "${KAIHEN_JIT_OBJ}")
-			message(FATAL_ERROR "Missing kaihen-jit.o at ${KAIHEN_JIT_OBJ}")
-		endif()
 		target_link_options(${TargetBin} PRIVATE
-			"-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/PPSSPP-switch2.map"
-			"${KAIHEN_JIT_OBJ}")
+			"-Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/PPSSPP-switch2.map")
 		target_link_libraries(${TargetBin} kaihen nx)
 		nx_generate_nacp(
 			OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/PPSSPP-switch2.nacp"
