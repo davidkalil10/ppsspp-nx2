@@ -375,7 +375,9 @@ void Arm64JitBackend::ClearAllBlocks() {
 	ClearCodeSpace(jitStartOffset_);
 	// Whatever was pending is in there.
 	numPendingFlushes_ = 0;
+#ifndef __SWITCH2__
 	FlushIcacheSection(region + jitStartOffset_, region + region_size - jitStartOffset_);
+#endif
 	EraseAllLinks(-1);
 }
 

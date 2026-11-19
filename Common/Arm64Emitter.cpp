@@ -138,9 +138,25 @@ bool Publish(const u8 *const *starts, const u8 *const *ends, int count) {
 		const size_t clampedSize = (off + sz > s.jit.size) ? (s.jit.size - off) : sz;
 		ranges.push_back(KaihenJitRange{ static_cast<u64>(off), static_cast<u64>(clampedSize) });
 	}
-	if (!ranges.empty()) {
-		(void)kaihenJitPublishRanges(&s.jit, ranges.data(), ranges.size());
+	if (ranges.empty()) {
+		return true;
 	}
+	std::sort(ranges.begin(), ranges.end(), [](const KaihenJitRange &a, const KaihenJitRange &b) {
+		return a.offset < b.offset;
+	});
+	std::vector<KaihenJitRange> merged;
+	merged.reserve(ranges.size());
+	for (const KaihenJitRange &r : ranges) {
+		if (!merged.empty() && r.offset <= merged.back().offset + merged.back().size) {
+			const u64 endA = merged.back().offset + merged.back().size;
+			const u64 endB = r.offset + r.size;
+			if (endB > endA)
+				merged.back().size = endB - merged.back().offset;
+		} else {
+			merged.push_back(r);
+		}
+	}
+	(void)kaihenJitPublishRanges(&s.jit, merged.data(), merged.size());
 	return true;
 }
 } // namespace Switch2JitPool

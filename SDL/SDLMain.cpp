@@ -3049,10 +3049,14 @@ int main(int argc, char *argv[]) {
 			errorApplicationShow(&error);
 		}
 		bool handoffReady = g_restartParams.empty() || SwitchWriteRestartHandoff(g_restartParams);
+#ifndef __SWITCH2__
 		if (handoffReady && (__nx_applet_type == AppletType_Application || __nx_applet_type == AppletType_SystemApplication)) {
 			appletRestartProgram(nullptr, 0);
 			remove(SWITCH_RESTART_HANDOFF);
 		}
+#else
+		(void)handoffReady;
+#endif
 		std::string restartArgs = g_switchExecutablePath;
 		if (!g_restartParams.empty()) {
 			restartArgs += " ";
