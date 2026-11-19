@@ -58,6 +58,17 @@ protected:
 	size_t region_size = 0;
 };
 
+#ifdef __SWITCH2__
+namespace switch2_codeblock_detail {
+template<typename U>
+auto SetJitIfSupported(U *obj, void *jit, int) -> decltype(obj->SetSwitch2Jit(jit), void()) {
+	obj->SetSwitch2Jit(jit);
+}
+template<typename U>
+void SetJitIfSupported(U *, void *, ...) {}
+} // namespace switch2_codeblock_detail
+#endif
+
 template<class T> class CodeBlock : public CodeBlockCommon, public T {
 private:
 	CodeBlock(const CodeBlock &) = delete;
@@ -91,7 +102,7 @@ public:
 		region = (u8 *)jitController.rx_addr;
 		writableRegion = (u8 *)jitController.rw_addr;
 #ifdef __SWITCH2__
-		T::SetSwitch2Jit(&jitController);
+		switch2_codeblock_detail::SetJitIfSupported(static_cast<T *>(this), &jitController, 0);
 #endif
 #else // PPSSPP_PLATFORM(SWITCH)
 		// The protection will be set to RW if PlatformIsWXExclusive.
@@ -170,7 +181,7 @@ public:
 		FreeExecutableMemory(region, region_size);
 #else // !PPSSPP_PLATFORM(SWITCH)
 #ifdef __SWITCH2__
-		T::SetSwitch2Jit(nullptr);
+		switch2_codeblock_detail::SetJitIfSupported(static_cast<T *>(this), nullptr, 0);
 #endif
 		jitClose(&jitController);
 		printf("[NXJIT]: Jit closed\n");
