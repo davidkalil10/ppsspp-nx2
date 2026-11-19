@@ -34,7 +34,7 @@
 #include "UI/SwitchUpdate.h"
 
 #ifndef PPSSPP_SWITCH_RELEASE_VERSION
-#define PPSSPP_SWITCH_RELEASE_VERSION "1.1.4"
+#define PPSSPP_SWITCH_RELEASE_VERSION "1.1.5"
 #endif
 
 namespace {

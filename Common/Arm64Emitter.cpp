@@ -156,7 +156,9 @@ bool Publish(const u8 *const *starts, const u8 *const *ends, int count) {
 			merged.push_back(r);
 		}
 	}
-	(void)kaihenJitPublishRanges(&s.jit, merged.data(), merged.size());
+	for (const KaihenJitRange &r : merged) {
+		(void)kaihenJitPublishRanges(&s.jit, &r, 1);
+	}
 	return true;
 }
 } // namespace Switch2JitPool

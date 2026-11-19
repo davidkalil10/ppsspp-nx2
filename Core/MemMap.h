@@ -108,9 +108,9 @@ enum {
 
 #ifdef MASKED_PSP_MEMORY
 	// This wraparound should work for PSP too.
-#if PPSSPP_ARCH(32BIT)
-	// 32-bit only reserves 256 MB at base. Valid addresses never have bits 28-29 set, so dropping them
-	// too keeps stray accesses inside the reservation, away from the heap.
+#if PPSSPP_ARCH(32BIT) || defined(__SWITCH2__)
+	// 32-bit and Switch 2 NO_MMAP only reserve 256 MB at base. Valid addresses never have bits 28-29 set,
+	// so dropping them too keeps stray accesses inside the reservation, away from the heap.
 	MEMVIEW32_MASK  = 0x0FFFFFFF,
 #else
 	MEMVIEW32_MASK  = 0x3FFFFFFF,

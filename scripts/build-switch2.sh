@@ -32,7 +32,7 @@ LIBOUNCE_PREFIX="$DEVKITPRO/libounce"
 [[ -f "$OUNCEVK_PREFIX/lib/libvulkan.a" ]] || { echo "Missing OunceVK libvulkan.a at $OUNCEVK_PREFIX/lib" >&2; exit 1; }
 
 JOBS="${JOBS:-$(nproc)}"
-SWITCH_RELEASE_VERSION="${PPSSPP_SWITCH_RELEASE_VERSION:-1.1.4}"
+SWITCH_RELEASE_VERSION="${PPSSPP_SWITCH_RELEASE_VERSION:-1.1.5}"
 mkdir -p "$DEPS_DIR" "$BUILD_DIR" "$DIST_DIR"
 
 SDL_PATCH="$ROOT_DIR/SDL/switch-vulkan-window.patch"
