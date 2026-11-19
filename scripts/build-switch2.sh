@@ -174,7 +174,7 @@ cmake --build "$BUILD_DIR" --target PPSSPP_NRO --parallel "$JOBS"
 cmake -E copy_if_different "$BUILD_DIR/PPSSPP-switch2.nro" "$DIST_DIR/PPSSPP-switch2.nro"
 
 echo "==> Verifying Switch 2 NRO package (OUN0 + kaiHEN JIT + zero Switch 1 libs)..."
-python3 "$ROOT_DIR/tools/verify_switch2_package.py" \
+python3 "$ROOT_DIR/Tools/verify_switch2_package.py" \
   "$DIST_DIR/PPSSPP-switch2.nro" \
   --link-map "$BUILD_DIR/PPSSPP-switch2.map"
 
