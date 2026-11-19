@@ -272,7 +272,9 @@ if(USE_LIBNX)
 		GIT_TAG 867beea093f2863dfddea01945204f724afd6c45)
 	FetchContent_MakeAvailable(libsmb2)
 	target_compile_definitions(smb2 PRIVATE AES128_ECB_encrypt=smb2_AES128_ECB_encrypt)
-	target_compile_options(smb2 PRIVATE -UNEED_WRITEV)
+	if(NOT NINTENDO_SWITCH2)
+		target_compile_options(smb2 PRIVATE -UNEED_WRITEV)
+	endif()
 
 	if(NOT NINTENDO_SWITCH2)
 	set(USBHSFS_GPL OFF CACHE BOOL "" FORCE)
@@ -455,13 +457,14 @@ include_directories(ext/glew)
 if(USE_LIBNX)
 	find_package(OpenGL CONFIG REQUIRED)
 	if(NINTENDO_SWITCH2)
-		find_package(PkgConfig REQUIRED)
-		pkg_check_modules(OUNCEVK_VULKAN REQUIRED vulkan)
+		# On Switch 2, OpenGL::GL links libouncevk-gl.a which already bundles all
+		# OunceVK Vulkan entry points together with EGL/Zink. Linking libouncevk.a
+		# alongside libouncevk-gl.a causes duplicate vk* definitions.
 		if(NOT TARGET Vulkan::Vulkan)
 			add_library(Vulkan::Vulkan INTERFACE IMPORTED)
 			set_target_properties(Vulkan::Vulkan PROPERTIES
-				INTERFACE_INCLUDE_DIRECTORIES "${OUNCEVK_VULKAN_INCLUDE_DIRS}"
-				INTERFACE_LINK_LIBRARIES "${OUNCEVK_VULKAN_STATIC_LDFLAGS}")
+				INTERFACE_INCLUDE_DIRECTORIES "${SWITCH2_DEVKITPRO}/portlibs/switch2/include"
+				INTERFACE_LINK_LIBRARIES "OpenGL::GL")
 		endif()
 	else()
 		find_package(Vulkan CONFIG REQUIRED)
