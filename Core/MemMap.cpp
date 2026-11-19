@@ -194,8 +194,8 @@ inline static bool CanIgnoreView(const MemoryView &view) {
 }
 
 static bool SkipView(MemMapSetupFlags flags, u32 viewFlags) {
-#if PPSSPP_PLATFORM(IOS) && PPSSPP_ARCH(64BIT)
-	// We use a limited memory map on iOS with masking, we don't need to allocate the kernel space views.
+#if (PPSSPP_PLATFORM(IOS) && PPSSPP_ARCH(64BIT)) || defined(NO_MMAP)
+	// We use a limited memory map on iOS/Switch 2 with masking, we don't need to allocate the kernel space views.
 	if (viewFlags & MV_KERNEL) {
 		return true;
 	}

@@ -23,6 +23,68 @@
 
 #include "Common/MemArena.h"
 
+#if defined(__SWITCH2__) || defined(NO_MMAP)
+#include <cstring>
+
+static constexpr size_t SWITCH2_PSP_ARENA_SIZE = 0x10000000ULL; // 256 MiB covers all masked PSP views
+static u8 *g_switch2ArenaBase = nullptr;
+
+size_t MemArena::roundup(size_t x) {
+	return (x + 0xFFF) & ~(size_t)0xFFF;
+}
+
+bool MemArena::NeedsProbing() {
+	return false;
+}
+
+bool MemArena::GrabMemSpace(size_t size) {
+	(void)size;
+	return true;
+}
+
+void MemArena::ReleaseSpace() {
+	if (g_switch2ArenaBase) {
+		free(g_switch2ArenaBase);
+		g_switch2ArenaBase = nullptr;
+	}
+}
+
+void *MemArena::CreateView(s64 offset, size_t size, void *base) {
+	(void)offset;
+	if (!g_switch2ArenaBase || !base) {
+		return nullptr;
+	}
+	const uintptr_t arenaStart = reinterpret_cast<uintptr_t>(g_switch2ArenaBase);
+	const uintptr_t reqStart = reinterpret_cast<uintptr_t>(base);
+	if (reqStart < arenaStart || reqStart - arenaStart > SWITCH2_PSP_ARENA_SIZE ||
+		size > SWITCH2_PSP_ARENA_SIZE - (reqStart - arenaStart)) {
+		return nullptr;
+	}
+	return base;
+}
+
+void MemArena::ReleaseView(s64 offset, void *view, size_t size) {
+	(void)offset;
+	(void)view;
+	(void)size;
+}
+
+void MemArena::ReleaseViewSpace(u8 *base) {
+	(void)base;
+}
+
+u8 *MemArena::Find4GBBase() {
+	if (!g_switch2ArenaBase) {
+		g_switch2ArenaBase = static_cast<u8 *>(memalign(0x1000, SWITCH2_PSP_ARENA_SIZE));
+		if (g_switch2ArenaBase) {
+			memset(g_switch2ArenaBase, 0, SWITCH2_PSP_ARENA_SIZE);
+		}
+	}
+	return g_switch2ArenaBase;
+}
+
+#else // !(__SWITCH2__ || NO_MMAP)
+
 static uintptr_t memoryBase = 0;
 static uintptr_t memoryCodeBase = 0;
 static uintptr_t memorySrcBase = 0;
@@ -229,4 +291,5 @@ u8 *MemArena::Find4GBBase() {
 	return (u8 *)window->base;
 }
 
+#endif // !(__SWITCH2__ || NO_MMAP)
 #endif // PPSSPP_PLATFORM(SWITCH)
