@@ -186,7 +186,7 @@ static constexpr double CURSOR_HIDE_DELAY = 0.5;
 static double g_lastCursorMoveTime = 0.0;
 
 static std::atomic<bool> g_QuitRequested{false};
-static bool g_RestartRequested = false;
+static std::atomic<bool> g_RestartRequested{false};
 #if PPSSPP_PLATFORM(SWITCH)
 static std::string g_restartParams;
 static std::string g_switchExecutablePath;
@@ -2530,6 +2530,12 @@ int main(int argc, char *argv[]) {
 	const char *external_dir = "/tmp";
 #endif
 
+#ifdef __SWITCH2__
+	// On Switch 2, envSetNextLoad self-reloads crash under kaiHEN/hbmenu.
+	// Loop the emulator session in-process so "Exit to launcher" returns directly
+	// to SwitchLauncher::Run() without exiting the process.
+	while (true) {
+#endif
 	// After NativeInit, code should no longer look at cmdLineOptions, they should have been translated
 	// into g_Config settings. This is because NativeInit may modify g_Config settings based on the command line options.
 #if PPSSPP_PLATFORM(SWITCH)
@@ -3013,14 +3019,31 @@ int main(int argc, char *argv[]) {
 	window = nullptr;
 	} // if (!(g_QuitRequested || g_RestartRequested))
 
-	NativeShutdown();
 #ifdef __SWITCH2__
-	Switch2JitPool::Shutdown();
+	const bool switch2RestartInProcess = g_RestartRequested && !SwitchUpdate_HasPendingInstall();
 #endif
+	NativeShutdown();
 
 #if PPSSPP_PLATFORM(SWITCH)
 	saltynx_stop();
 	SwitchLibrary::Shutdown();
+#endif
+
+	StopSDLAudioDevice();
+#ifdef __SWITCH2__
+	if (switch2RestartInProcess) {
+		cmdLineOptions.bootFilenames.clear();
+		if (!g_restartParams.empty()) {
+			cmdLineOptions.bootFilenames.push_back(g_restartParams);
+		}
+		g_QuitRequested = false;
+		g_RestartRequested = false;
+		g_restartParams.clear();
+		continue;
+	}
+	break;
+	} // while (true) Switch 2 session loop
+	Switch2JitPool::Shutdown();
 #endif
 
 
@@ -3031,7 +3054,6 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	StopSDLAudioDevice();
 	SDL_Quit();
 #if PPSSPP_PLATFORM(RPI)
 	bcm_host_deinit();
@@ -3060,15 +3082,12 @@ int main(int argc, char *argv[]) {
 			errorApplicationCreate(&error, updateError.c_str(), nullptr);
 			errorApplicationShow(&error);
 		}
-		bool handoffReady = g_restartParams.empty() || SwitchWriteRestartHandoff(g_restartParams);
 #ifndef __SWITCH2__
+		bool handoffReady = g_restartParams.empty() || SwitchWriteRestartHandoff(g_restartParams);
 		if (handoffReady && (__nx_applet_type == AppletType_Application || __nx_applet_type == AppletType_SystemApplication)) {
 			appletRestartProgram(nullptr, 0);
 			remove(SWITCH_RESTART_HANDOFF);
 		}
-#else
-		(void)handoffReady;
-#endif
 		std::string restartArgs = g_switchExecutablePath;
 		if (!g_restartParams.empty()) {
 			restartArgs += " ";
@@ -3078,6 +3097,11 @@ int main(int argc, char *argv[]) {
 		if (R_SUCCEEDED(rc)) {
 			return 0;
 		}
+#else
+		// On Switch 2, after installing a pending update, exit cleanly back to hbmenu
+		// (matching pressing B in the launcher) rather than calling envSetNextLoad.
+		return 0;
+#endif
 	}
 #endif
 

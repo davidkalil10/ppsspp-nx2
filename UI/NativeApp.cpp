@@ -645,6 +645,9 @@ void NativeInit(int argc, const char *argv[], const CommandLineOptions &cmdLineO
 	// external_dir has all kinds of meanings depending on platform.
 	// on iOS it's even the path to bundled app assets. It's a mess.
 
+#ifdef __SWITCH2__
+	g_VFS.Clear();
+#endif
 	// We want this to be FIRST.
 #if PPSSPP_PLATFORM(IOS) || PPSSPP_PLATFORM(MAC)
 	// Packed assets are included in app
@@ -939,7 +942,9 @@ void NativeInit(int argc, const char *argv[], const CommandLineOptions &cmdLineO
 	}
 	std::optional<bool> launcherUmdAutoboot;
 	if (boot_filename.empty()) {
-		g_gameInfoCache = new GameInfoCache();
+		if (!g_gameInfoCache) {
+			g_gameInfoCache = new GameInfoCache();
+		}
 		const auto launch = SwitchLauncher::Run();
 		if (launch.action == SwitchLauncher::Action::Launch) {
 			boot_filename = Path(launch.path);
@@ -2120,6 +2125,12 @@ void NativeShutdown() {
 		delete g_screenManager;
 		g_screenManager = nullptr;
 	}
+#ifdef __SWITCH2__
+	if (g_gameInfoCache) {
+		delete g_gameInfoCache;
+		g_gameInfoCache = nullptr;
+	}
+#endif
 
 	if (imguiInited_) {
 		ImGui_ImplPlatform_SaveIni(true);

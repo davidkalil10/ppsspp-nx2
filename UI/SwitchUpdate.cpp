@@ -34,7 +34,7 @@
 #include "UI/SwitchUpdate.h"
 
 #ifndef PPSSPP_SWITCH_RELEASE_VERSION
-#define PPSSPP_SWITCH_RELEASE_VERSION "1.1.7"
+#define PPSSPP_SWITCH_RELEASE_VERSION "1.1.8"
 #endif
 
 namespace {
@@ -519,6 +519,10 @@ void SwitchUpdateTask::StartCheck() { impl_->StartCheck(); }
 void SwitchUpdateTask::StartDownload() { impl_->StartDownload(); }
 void SwitchUpdateTask::Cancel() { impl_->cancel.store(true, std::memory_order_relaxed); }
 bool SwitchUpdateTask::ScheduleInstall() { return impl_->ScheduleInstall(); }
+
+bool SwitchUpdate_HasPendingInstall() {
+	return installPending_;
+}
 
 bool SwitchUpdate_InstallPending(bool romfsUnmounted, std::string *error) {
 	if (!installPending_) {

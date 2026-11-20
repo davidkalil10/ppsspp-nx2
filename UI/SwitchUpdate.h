@@ -13,6 +13,7 @@
 
 void SwitchUpdate_SetExecutablePath(std::string path);
 bool SwitchUpdate_RecoverInstallation(std::string *error);
+bool SwitchUpdate_HasPendingInstall();
 // Called by the SDL restart path after shutting down asset readers and unmounting RomFS.
 bool SwitchUpdate_InstallPending(bool romfsUnmounted, std::string *error);
 
