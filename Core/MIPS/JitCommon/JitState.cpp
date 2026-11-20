@@ -35,7 +35,13 @@ namespace MIPSComp {
 		// ARM/ARM64
 		useBackJump = false;
 		useForwardJump = false;
+#ifdef __SWITCH2__
+		// Under Switch 2 NO_MMAP/MASKED_PSP_MEMORY + kaiHEN RO alias, disable cached
+		// pointers (which mask high bits in-place) and in-place block linking.
+		cachePointers = false;
+#else
 		cachePointers = !Disabled(JitDisable::CACHE_POINTERS);
+#endif
 
 		// ARM only
 		downcountInRegister = true;
@@ -44,7 +50,11 @@ namespace MIPSComp {
 
 		// We can get block linking to work with W^X by doing even more unprotect/re-protect, but let's try without first.
 		// enableBlocklink = !PlatformIsWXExclusive();  // Revert to this line if block linking is slow in W^X mode
+#ifdef __SWITCH2__
+		enableBlocklink = false;
+#else
 		enableBlocklink = !Disabled(JitDisable::BLOCKLINK);
+#endif
 		useStaticAlloc = false;
 		enablePointerify = false;
 #if PPSSPP_ARCH(ARM64) || PPSSPP_ARCH(RISCV64) || PPSSPP_ARCH(LOONGARCH64)
