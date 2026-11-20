@@ -62,6 +62,7 @@ protected:
 namespace Switch2JitPool {
 bool Alloc(size_t size, uint8_t **outRx, uint8_t **outRw);
 void Free(uint8_t *rx, size_t size);
+void Shutdown();
 } // namespace Switch2JitPool
 #endif
 

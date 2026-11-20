@@ -117,6 +117,17 @@ void Free(uint8_t *rx, size_t size) {
 		s.used.end());
 }
 
+void Shutdown() {
+	PoolState &s = State();
+	std::lock_guard<std::mutex> lock(s.mutex);
+	s.used.clear();
+	if (s.open) {
+		jitClose(&s.jit);
+		s.jit = {};
+		s.open = false;
+	}
+}
+
 bool Publish(const u8 *const *starts, const u8 *const *ends, int count) {
 	PoolState &s = State();
 	std::lock_guard<std::mutex> lock(s.mutex);

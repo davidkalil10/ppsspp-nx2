@@ -92,6 +92,9 @@ SDLJoystick *joystick = NULL;
 
 #if PPSSPP_PLATFORM(SWITCH)
 #include <switch.h>
+#ifdef __SWITCH2__
+namespace Switch2JitPool { void Shutdown(); }
+#endif
 #include "Common/GPU/Vulkan/SwitchLSFG.h"
 #ifndef __SWITCH2__
 #include "Common/GPU/Deko3D/DekoContext.h"
@@ -2303,7 +2306,11 @@ int main(int argc, char *argv[]) {
 		g_switchExecutablePath = SwitchNormalizeNroPath(argv[0]);
 	}
 	if (g_switchExecutablePath.empty()) {
+#ifdef __SWITCH2__
+		g_switchExecutablePath = "sdmc:/switch/ppsspp-nx/PPSSPP-switch2.nro";
+#else
 		g_switchExecutablePath = "sdmc:/switch/ppsspp-nx/PPSSPP.nro";
+#endif
 	}
 	SwitchUpdate_SetExecutablePath(g_switchExecutablePath);
 	SwitchForwarder_SetExecutablePath(g_switchExecutablePath);
@@ -2543,6 +2550,7 @@ int main(int argc, char *argv[]) {
 	setenv("MESA_SHADER_CACHE_MAX_SIZE", "256M", 1);
 #endif
 
+	if (!(g_QuitRequested || g_RestartRequested)) {
 	// Use the setting from the config when initing the window.
 	if (g_Config.bFullScreen) {
 		mode |= SDL_WINDOW_FULLSCREEN;
@@ -3003,8 +3011,12 @@ int main(int argc, char *argv[]) {
 	delete graphicsContext;
 	SDL_DestroyWindow(window);
 	window = nullptr;
+	} // if (!(g_QuitRequested || g_RestartRequested))
 
 	NativeShutdown();
+#ifdef __SWITCH2__
+	Switch2JitPool::Shutdown();
+#endif
 
 #if PPSSPP_PLATFORM(SWITCH)
 	saltynx_stop();
